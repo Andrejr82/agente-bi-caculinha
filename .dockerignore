@@ -1,0 +1,12 @@
+.git
+.gitignore
+.mypy_cache
+.pytest_cache
+__pycache__
+venc/
+*.pyc
+*.log
+.env
+auth_users.db
+generated_charts/
+logs/

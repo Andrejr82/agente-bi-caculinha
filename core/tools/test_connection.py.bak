@@ -1,0 +1,61 @@
+import logging
+import pyodbc
+
+logging.basicConfig(level=logging.INFO)
+
+
+def test_connection():
+    try:
+        # Carregar variáveis de ambiente
+        from dotenv import load_dotenv
+        import os
+
+        load_dotenv()
+
+        # Obter configurações do arquivo .env
+        driver = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
+        server = os.getenv("DB_SERVER")
+        database = os.getenv("DB_DATABASE")
+        username = os.getenv("DB_USER")
+        password = os.getenv("DB_PASSWORD")
+        trust_cert = os.getenv("DB_TRUST_CERTIFICATE", "yes")
+
+        # Verificar se todas as variáveis necessárias estão definidas
+        required_vars = [
+            "DB_DRIVER",
+            "DB_SERVER",
+            "DB_DATABASE",
+            "DB_USER",
+            "DB_PASSWORD",
+        ]
+        missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+        if missing_vars:
+            raise ValueError(
+                f"Variáveis de ambiente ausentes: {', '.join(missing_vars)}"
+            )
+
+        # Montar string de conexão
+        conn_string = f"DRIVER={{{driver}}};SERVER={server};DATABASE={database};UID={username};PWD={password};TrustServerCertificate={trust_cert};"
+
+        logging.info("Tentando conectar ao SQL Server...")
+        conn = pyodbc.connect(conn_string)
+        cursor = conn.cursor()
+
+        logging.info("Conexão bem-sucedida!")
+        logging.info("Testando consulta simples...")
+
+        cursor.execute("SELECT @@VERSION")
+        row = cursor.fetchone()
+        logging.info(f"Versão do SQL Server: {row[0]}")
+
+        cursor.close()
+        conn.close()
+        logging.info("Teste concluído com sucesso!")
+
+    except Exception as e:
+        logging.error(f"Erro ao conectar: {e}")
+
+
+if __name__ == "__main__":
+    test_connection()

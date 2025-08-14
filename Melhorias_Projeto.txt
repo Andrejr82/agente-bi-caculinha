@@ -1,0 +1,10 @@
+Agora, para robustecer ainda mais o projeto, sugiro:
+
+   1. Integração de Banco de Dados para Gerenciamento de Usuários: Migrar a autenticação para um DB robusto (PostgreSQL/MySQL) com ORM, melhorando
+      segurança e escalabilidade.
+   2. UI de Gerenciamento de Catálogo de Dados: Desenvolver uma interface Streamlit para gerenciar o catalog_focused.json, simplificando a
+      manutenção por não-técnicos.
+   3. Orquestração LLM Avançada (LangChain/LlamaIndex): Reintroduzir ou aprimorar o uso de frameworks para raciocínio multi-etapa, agentes com
+      ferramentas e RAG, para respostas mais inteligentes e flexíveis.
+   4. Containerização (Docker): Empacotar a aplicação com Docker para ambientes consistentes e implantação simplificada.
+   5. Pipeline CI/CD: Implementar CI/CD (GitHub Actions, etc.) para automatizar testes e implantação, garantindo qualidade e agilidade.

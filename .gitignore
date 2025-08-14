@@ -1,0 +1,33 @@
+# Ambientes Virtuais
+venv/
+.venv/
+env/
+.env
+
+# Caches do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Caches de Ferramentas de Teste e Análise
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+logs/
+*.log
+
+# Arquivos de Sistema Operacional
+desktop.ini
+.DS_Store
+
+# Arquivos de IDEs
+.vscode/
+.idea/
+
+# Diretórios de Saída e Relatórios Gerados
+outputs/
+relatorios/
+generated_charts/
