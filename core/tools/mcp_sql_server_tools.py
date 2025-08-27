@@ -1,133 +1,137 @@
 # core/tools/mcp_sql_server_tools.py
-import json
 import os
-from typing import Any, Dict, List, Optional, Union
-
-import pyodbc
-from dotenv import load_dotenv
+import pandas as pd
+from typing import Dict, Any, Optional
 from langchain_core.tools import tool
+import logging
 
-# Carregar variáveis de ambiente para obter as credenciais do banco de dados
-dotenv_path = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"
-)
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path)
+# Caminho para o arquivo Parquet agora aponta para a nova fonte de dados
+PARQUET_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'parquet_cleaned')
+ADMATAO_PATH = os.path.join(PARQUET_DIR, 'admatao.parquet')
 
-# Configurações do Banco de Dados
-MSSQL_SERVER = os.getenv("MSSQL_SERVER")
-MSSQL_DATABASE = os.getenv("MSSQL_DATABASE")
-MSSQL_USER = os.getenv("MSSQL_USER")
-MSSQL_PASSWORD = os.getenv("MSSQL_PASSWORD")
-DB_DRIVER = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
-MSSQL_TRUST_SERVER_CERTIFICATE = os.getenv("MSSQL_TRUST_SERVER_CERTIFICATE", "yes")
-MSSQL_ENCRYPT = os.getenv("MSSQL_ENCRYPT", "no")
-
-def get_db_connection():
-    """Cria e retorna uma conexão com o banco de dados SQL Server."""
-    if not all([MSSQL_SERVER, MSSQL_DATABASE, MSSQL_USER, MSSQL_PASSWORD]):
-        raise ValueError("Variáveis de ambiente do banco de dados não configuradas.")
+@tool
+def get_product_data(product_code: str) -> Dict[str, Any]:
+    """
+    Busca dados de um produto específico a partir do arquivo Parquet 'admatao.parquet'.
+    Recebe um 'product_code' e retorna um dicionário com os dados do produto.
+    """
+    logging.info(f"Buscando dados para o produto: {product_code} no arquivo Parquet 'admatao.parquet'.")
     
-    conn_str = (
-        f"DRIVER={{{DB_DRIVER}}};"
-        f"SERVER={MSSQL_SERVER};"
-        f"DATABASE={MSSQL_DATABASE};"
-        f"UID={MSSQL_USER};"
-        f"PWD={MSSQL_PASSWORD};"
-        f"Encrypt={MSSQL_ENCRYPT};"
-        f"TrustServerCertificate={MSSQL_TRUST_SERVER_CERTIFICATE};"
-    )
-    return pyodbc.connect(conn_str)
-
-def _execute_query(query: str, params: Optional[tuple] = None) -> Dict[str, Any]:
-    """Função helper para executar consultas e retornar resultados como dicionário."""
     try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, params) if params else cursor.execute(query)
-            
-            try:
-                columns = [column[0] for column in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-                return {"data": results}
-            except TypeError: # No rows returned
-                conn.commit()
-                return {"message": "Comando executado com sucesso, nenhum dado retornado."}
+        if not os.path.exists(ADMATAO_PATH):
+            logging.error(f"Arquivo Parquet não encontrado em: {ADMATAO_PATH}")
+            return {"error": "Fonte de dados de produtos (admatao.parquet) não encontrada."}
 
-    except pyodbc.Error as e:
-        return {"error": f"Erro de banco de dados: {e}"}
+        df = pd.read_parquet(ADMATAO_PATH)
+        
+        # Usa a coluna correta 'PRODUTO' e a converte para string para a comparação
+        df['PRODUTO'] = df['PRODUTO'].astype(str)
+        product_code = str(product_code)
+
+        product_info = df[df['PRODUTO'] == product_code]
+
+        if product_info.empty:
+            return {"data": f"Nenhum produto encontrado com o código {product_code}."}
+        
+        # Converte o resultado para um dicionário para retornar
+        return {"data": product_info.to_dict(orient='records')}
+
     except Exception as e:
-        return {"error": f"Erro inesperado: {e}"}
+        logging.error(f"Erro ao ler o arquivo Parquet ou processar os dados: {e}", exc_info=True)
+        return {"error": f"Ocorreu um erro inesperado ao buscar dados do produto: {e}"}
 
 @tool
-def get_database_schema() -> str:
+def get_product_stock(product_id: int) -> Dict[str, Any]:
     """
-    Obtém o schema das tabelas e views do banco de dados SQL Server.
-    Retorna o schema como uma string formatada.
+    Retorna o estoque de um produto específico a partir do arquivo Parquet 'admatao.parquet'.
+    Recebe um 'product_id' e retorna um dicionário com o estoque do produto.
     """
-    query = """
-    SELECT t.TABLE_SCHEMA, t.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE
-    FROM INFORMATION_SCHEMA.TABLES as t
-    JOIN INFORMATION_SCHEMA.COLUMNS as c ON t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_SCHEMA = c.TABLE_SCHEMA
-    WHERE t.TABLE_TYPE IN ('BASE TABLE', 'VIEW')
-    ORDER BY t.TABLE_SCHEMA, t.TABLE_NAME, c.ORDINAL_POSITION;
-    """
-    response = _execute_query(query)
-    
-    if "error" in response:
-        return f"Erro ao obter schema: {response['error']}"
+    logging.info(f"Buscando estoque para o produto: {product_id} no arquivo Parquet 'admatao.parquet'.")
+    try:
+        if not os.path.exists(ADMATAO_PATH):
+            logging.error(f"Arquivo Parquet não encontrado em: {ADMATAO_PATH}")
+            return {"error": "Fonte de dados de produtos (admatao.parquet) não encontrada."}
 
-    schema_str = ""
-    for row in response.get("data", []):
-        schema_str += f"Tabela: {row['TABLE_SCHEMA']}.{row['TABLE_NAME']}, Coluna: {row['COLUMN_NAME']}, Tipo: {row['DATA_TYPE']}\n"
-    
-    return schema_str if schema_str else "Nenhum schema encontrado."
+        df = pd.read_parquet(ADMATAO_PATH)
+        
+        # Assumindo que 'PRODUTO' é o ID do produto e 'ESTOQUE' é a coluna de estoque
+        df['PRODUTO'] = df['PRODUTO'].astype(str)
+        product_id_str = str(product_id)
 
-@tool
-def execute_sql_query(query: str) -> Dict[str, Union[str, List[Dict[str, Any]]]]:
-    """
-    Executa uma consulta SQL SELECT no banco de dados SQL Server.
-    Retorna um dicionário com os dados. APENAS QUERIES SELECT SÃO PERMITIDAS.
-    """
-    query_upper = query.strip().upper()
-    forbidden_keywords = [
-        "DELETE", "UPDATE", "INSERT", "DROP", "ALTER", "TRUNCATE", "EXEC", "CREATE"
-    ]
-    if any(keyword in query_upper for keyword in forbidden_keywords) or not query_upper.startswith("SELECT"):
-        return {
-            "error": "Apenas consultas SELECT são permitidas."
-        }
+        product_stock_info = df[df['PRODUTO'] == product_id_str]
 
-    response = _execute_query(query)
-    return response
+        if product_stock_info.empty:
+            return {"data": f"Nenhum produto encontrado com o ID {product_id}."}
+        
+        # Assumindo que a coluna de estoque se chama 'ESTOQUE'
+        stock = product_stock_info['ESTOQUE'].iloc[0] # Pega o primeiro valor de estoque encontrado
+        return {"data": {"product_id": product_id, "stock": stock}}
+
+    except Exception as e:
+        logging.error(f"Erro ao buscar estoque do produto: {e}", exc_info=True)
+        return {"error": f"Ocorreu um erro inesperado ao buscar o estoque do produto: {e}"}
 
 @tool
-def get_sales_data() -> Dict[str, Any]:
+def list_product_categories() -> Dict[str, Any]:
     """
-    Busca os dados de vendas consolidados, chamando a stored procedure sp_mcp_get_sales_data.
+    Retorna uma lista de todas as categorias de produtos disponíveis no arquivo Parquet 'admatao.parquet'.
     """
-    return _execute_query("EXEC dbo.sp_mcp_get_sales_data")
+    logging.info(f"Listando categorias de produtos do arquivo Parquet 'admatao.parquet'.")
+    try:
+        if not os.path.exists(ADMATAO_PATH):
+            logging.error(f"Arquivo Parquet não encontrado em: {ADMATAO_PATH}")
+            return {"error": "Fonte de dados de produtos (admatao.parquet) não encontrada."}
+
+        df = pd.read_parquet(ADMATAO_PATH)
+        
+        # Assumindo que a coluna de categoria se chama 'CATEGORIA'
+        if 'CATEGORIA' not in df.columns:
+            return {"error": "Coluna 'CATEGORIA' não encontrada no arquivo admatao.parquet."}
+
+        categories = df['CATEGORIA'].unique().tolist()
+        return {"data": {"categories": categories}}
+
+    except Exception as e:
+        logging.error(f"Erro ao listar categorias de produtos: {e}", exc_info=True)
+        return {"error": f"Ocorreu um erro inesperado ao listar categorias de produtos: {e}"}
+
+SALES_DATA_PATH = os.path.join(PARQUET_DIR, 'vendas.parquet')
 
 @tool
-def get_product_data(product_code: Optional[str] = None) -> Dict[str, Any]:
+def get_last_sale_date(product_id: int) -> Dict[str, Any]:
     """
-    Busca dados de um produto específico ou uma lista de produtos, chamando a stored procedure sp_mcp_get_product_data.
+    Retorna a data da última venda de um produto específico a partir do arquivo Parquet 'vendas.parquet'.
+    Recebe um 'product_id' e retorna um dicionário com a data da última venda.
     """
-    return _execute_query("EXEC dbo.sp_mcp_get_product_data @product_code=?", (product_code,))
+    logging.info(f"Buscando data da última venda para o produto: {product_id} no arquivo Parquet 'vendas.parquet'.")
+    try:
+        if not os.path.exists(SALES_DATA_PATH):
+            logging.error(f"Arquivo Parquet de vendas não encontrado em: {SALES_DATA_PATH}")
+            return {"error": "Fonte de dados de vendas (vendas.parquet) não encontrada."}
 
-@tool
-def get_category_data() -> Dict[str, Any]:
-    """
-    Busca dados de vendas agregados por categoria, chamando a stored procedure sp_mcp_get_category_data.
-    """
-    return _execute_query("EXEC dbo.sp_mcp_get_category_data")
+        df_sales = pd.read_parquet(SALES_DATA_PATH)
+        
+        # Assumindo que 'produto_id' é o ID do produto e 'data_venda' é a coluna de data da venda
+        df_sales['produto_id'] = df_sales['produto_id'].astype(str)
+        product_id_str = str(product_id)
+        df_sales['data_venda'] = pd.to_datetime(df_sales['data_venda'])
 
+        product_sales = df_sales[df_sales['produto_id'] == product_id_str]
 
-# Lista de ferramentas para ser usada pelo agente
+        if product_sales.empty:
+            return {"data": f"Nenhuma venda encontrada para o produto com ID {product_id}."}
+        
+        last_sale_date = product_sales['data_venda'].max() # Pega a data mais recente
+        return {"data": {"product_id": product_id, "last_sale_date": last_sale_date.strftime('%Y-%m-%d')}}
+
+    except Exception as e:
+        logging.error(f"Erro ao buscar a data da última venda do produto: {e}", exc_info=True)
+        return {"error": f"Ocorreu um erro inesperado ao buscar a data da última venda do produto: {e}"}
+
+# A lista de ferramentas agora reflete a nova arquitetura.
 sql_tools = [
-    get_database_schema,
-    execute_sql_query,
-    get_sales_data,
     get_product_data,
-    get_category_data,
+    get_product_stock,
+    list_product_categories,
+    get_last_sale_date,
 ]

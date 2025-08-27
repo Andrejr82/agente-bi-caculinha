@@ -1,119 +1,152 @@
-<!-- Banner visual do projeto -->
-<p align="center">
-  <img src="https://raw.githubusercontent.com/github/explore/main/topics/business-intelligence/business-intelligence.png" alt="Caçulinha BI" width="320"/>
-</p>
+# Caçulinha BI
 
-<p align="center">
-  <b>Caçulinha BI</b> &mdash; Plataforma de Business Intelligence com Agente Inteligente
-</p>
+## Descrição do Projeto
 
-<p align="center">
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.11%2B-blue?logo=python" alt="Python"></a>
-  <img src="https://img.shields.io/badge/Frontend-Streamlit-orange?logo=streamlit" alt="Streamlit">
-  <img src="https://img.shields.io/badge/Dados-Parquet-yellow" alt="Parquet">
-  <img src="https://img.shields.io/badge/LLM-OpenAI-green?logo=openai" alt="OpenAI">
-  <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
-</p>
+O Caçulinha BI é um sistema de Business Intelligence desenvolvido em Python, utilizando SQL Server, Parquet e a API da OpenAI, com uma interface interativa construída com Streamlit. O objetivo principal é fornecer insights e análises de dados de forma eficiente e acessível.
 
----
+Este projeto está em constante evolução, com foco em melhorias contínuas em sua arquitetura, segurança e eficiência. As próximas etapas incluem a integração de um banco de dados robusto para gerenciamento de usuários, uma UI para gerenciamento de catálogo de dados, orquestração LLM avançada, containerização com Docker e a implementação de um pipeline CI/CD.
 
-# Caçulinha BI - Plataforma de Business Intelligence com Agente Inteligente
+## Setup
 
-## 🚀 Visão Geral
-
-O Caçulinha BI é uma plataforma de Business Intelligence que permite aos usuários interagir com dados de forma intuitiva, utilizando linguagem natural. Através de um agente inteligente baseado no modelo GPT da OpenAI, a plataforma transforma perguntas em insights, analisando dados armazenados em arquivos Parquet.
-
-O projeto visa democratizar o acesso à informação, permitindo que usuários sem conhecimento técnico em SQL ou ferramentas de BI tradicionais possam explorar e visualizar dados de forma eficiente.
-
-## 💡 Tecnologias Principais
-
-*   **Frontend:** Streamlit para uma interface de usuário interativa.
-*   **Backend e Agente:** Python com a biblioteca da OpenAI para interação com o modelo de linguagem.
-*   **Processamento de Dados:** Pandas para manipulação de dados a partir de arquivos Parquet.
-*   **Visualização:** Plotly para geração de gráficos dinâmicos.
-*   **Autenticação:** Sistema de login para gerenciamento de usuários.
-
-## 🏗️ Arquitetura
-
-A arquitetura do Caçulinha BI é composta pelos seguintes componentes:
-
-1.  **Interface do Usuário (`streamlit_app.py`):** Responsável pela interação com o usuário, exibição de dashboards, gráficos e o chat conversacional.
-2.  **Módulo de Autenticação (`core/auth.py`):** Gerencia o login e as sessões de usuário.
-3.  **Processador de Consultas (`core/query_processor.py`):** Recebe as consultas em linguagem natural, constrói um prompt e envia para o agente de IA.
-4.  **Agente de IA (`core/agents/caculinha_bi_agent.py`):** Interage com a API da OpenAI para gerar código Python, que é então executado para analisar os dados e gerar a resposta.
-5.  **Fontes de Dados:** Arquivos Parquet localizados na pasta `data/parquet_cleaned/`.
-
-## 📁 Estrutura das Pastas
-
-```
-├── core/             # Núcleo da aplicação
-│   ├── agents/       # Lógica do agente de IA
-│   ├── __init__.py
-│   ├── agent_state.py
-│   ├── auth.py
-│   ├── desktop.ini
-│   ├── llm_adapter.py
-│   ├── main.py
-│   ├── query_processor.py
-│   ├── run.py
-│   └── transformer_adapter.py
-├── data/             # Dados de entrada (Parquet), configurações e logs
-├── pages/            # Páginas da aplicação Streamlit
-├── scripts/          # Scripts de automação e manutenção
-├── tests/            # Testes automatizados
-├── docs/             # Documentação adicional
-├── .env              # Variáveis de ambiente (NÃO VERSIONAR)
-├── auth_users.db     # Banco de dados para autenticação
-├── streamlit_app.py  # Ponto de entrada da aplicação Streamlit
-├── requirements.txt  # Dependências do projeto
-└── README.md         # Este arquivo
-```
-
-## ⚡ Onboarding Rápido
-
-Siga estes passos para configurar e executar o projeto localmente:
+Para configurar e executar o projeto localmente, siga os passos abaixo:
 
 1.  **Clone o repositório:**
     ```bash
     git clone <URL_DO_REPOSITORIO>
     cd Agent_BI
     ```
-2.  **Crie e ative um ambiente virtual:**
+
+2.  **Crie e ative o ambiente virtual:**
     ```bash
-    python -m venv venv
-    # No Windows:
-    venv\Scripts\activate
-    # No Linux/macOS:
-    source venv/bin/activate
+    python -m venv .venv
+    # No Windows
+    .venv\Scripts\activate
+    # No macOS/Linux
+    source .venv/bin/activate
     ```
+
 3.  **Instale as dependências:**
     ```bash
     pip install -r requirements.txt
     ```
-4.  **Configure o `.env`:**
-    Crie um arquivo `.env` na raiz do projeto e adicione sua chave da API da OpenAI:
+
+4.  **Configure as variáveis de ambiente:**
+    Crie um arquivo `.env` na raiz do projeto, baseado no `.env.example`, e preencha com suas credenciais e configurações. Exemplo:
     ```
-    OPENAI_API_KEY="sua_chave_openai_aqui"
+    OPENAI_API_KEY=sua_chave_aqui
+    MSSQL_SERVER=seu_servidor_sql
+    MSSQL_DATABASE=seu_banco_de_dados
+    MSSQL_USER=seu_usuario
+    MSSQL_PASSWORD=sua_senha
+    DB_DRIVER={ODBC Driver 17 for SQL Server}
     ```
+
 5.  **Execute a aplicação Streamlit:**
     ```bash
     streamlit run streamlit_app.py
     ```
-6.  **Acesse a interface web:**
-    Abra seu navegador e acesse [http://localhost:8501](http://localhost:8501).
 
-## 🧪 Testes
+## Arquitetura do Projeto
 
-Para garantir a qualidade do projeto, execute os testes automatizados:
+O projeto é organizado nas seguintes pastas principais:
 
-```bash
-pytest
+*   `core/`: Contém o coração da aplicação, incluindo a lógica de negócio, adaptadores para LLMs e bancos de dados, agentes e a API.
+*   `scripts/`: Armazena scripts utilitários para processamento de dados, exportação, limpeza e outras tarefas de automação.
+*   `data/`: Contém arquivos de dados, configurações, catálogos e outros recursos estáticos.
+*   `pages/`: Contém os arquivos Python que definem as diferentes páginas da aplicação Streamlit.
+*   `tools/`: Contém scripts de uso único ou ferramentas auxiliares para diagnóstico e manutenção do projeto.
+*   `dags/`: Contém blueprints para orquestração de pipelines de dados, seguindo padrões de ferramentas como Airflow/Mage.
+
+## Documentação Antiga
+
+Informações e planos de melhoria anteriores, como os encontrados em `docs/archive/`, `docs/historico/` e `Melhorias_Projeto.txt`, são considerados obsoletos e serão arquivados. Este `README.md` é a fonte primária e mais atualizada de documentação do projeto.
+
+## Arquitetura Detalhada e Fluxos
+
+Esta seção descreve os principais fluxos de trabalho do Assistente de BI Caçulinha, com diagramas para facilitar a compreensão.
+
+### 1. Fluxo de Processamento de Consulta
+
+Este fluxograma ilustra como uma pergunta do usuário é processada pelo sistema, desde a entrada no Streamlit até a resposta final.
+
+#### Para Leigos:
+
+```mermaid
+graph TD
+    A[Usuário faz pergunta] --> B{Streamlit App};
+    B --> C[Processa Pergunta];
+    C --> D[Assistente de BI responde];
 ```
 
-## 🤝 Contribuição
+#### Para Especialistas:
 
-Contribuições são bem-vindas! Sinta-se à vontade para abrir um Pull Request.
+```mermaid
+graph TD
+    A[Usuário faz pergunta no Streamlit] --> B(Streamlit App);
+    B --> C{QueryProcessor.process_query()};
+    C --> D{SupervisorAgent.route_query()};
+    D -- "Consulta Simples" --> E(ToolAgent.process_query());
+    D -- "Consulta Complexa" --> F(CodeGenAgent.generate_and_execute_code());
+    E --> G[Ferramentas SQL/Parquet];
+    F --> H[RAG (vector_store.pkl) + LLM];
+    G --> I[Resultado da Ferramenta];
+    H --> J[Código Python Gerado/Executado];
+    I --> K[Resposta para Usuário];
+    J --> K;
+    K --> B;
+```
 
-## 📄 Licença
+### 2. Fluxo de Geração de Embeddings (RAG)
 
-Este projeto está licenciado sob a Licença MIT.
+Este fluxograma detalha como os embeddings são gerados a partir do catálogo de dados e armazenados para serem usados pelo `CodeGenAgent` no processo de RAG.
+
+#### Para Leigos:
+
+```mermaid
+graph TD
+    A[Dados do Projeto] --> B[Gera Embeddings];
+    B --> C[Salva para Busca Rápida];
+    C --> D[Assistente usa para responder];
+```
+
+#### Para Especialistas:
+
+```mermaid
+graph TD
+    A[data/catalog_focused.json] --> B(scripts/generate_embeddings.py);
+    B --> C[Carrega Catálogo];
+    C --> D[Cria Textos Descritivos de Colunas];
+    D --> E[SentenceTransformer.encode()];
+    E --> F[Embeddings Gerados];
+    F --> G[FAISS.IndexFlatL2.add()];
+    G --> H[FAISS Index];
+    H --> I[Salva FAISS Index + Metadados];
+    I --> J[data/vector_store.pkl];
+    J --> K[CodeGenAgent usa para RAG];
+```
+
+### 3. Fluxo de Autenticação
+
+Este fluxograma descreve o processo de autenticação de usuários no aplicativo Streamlit.
+
+#### Para Leigos:
+
+```mermaid
+graph TD
+    A[Usuário abre App] --> B{Tela de Login};
+    B -- "Credenciais Válidas" --> C[Acesso ao Assistente];
+    B -- "Credenciais Inválidas" --> B;
+```
+
+#### Para Especialistas:
+
+```mermaid
+graph TD
+    A[Usuário abre Streamlit App] --> B(auth.login());
+    B --> C{Formulário de Login};
+    C -- "Submit" --> D{auth_db.autenticar_usuario()};
+    D -- "Sucesso" --> E[Sessão Autenticada];
+    D -- "Falha" --> C;
+    E --> F[Redireciona para Assistente de BI];
+    F --> G(show_bi_assistant());
+```

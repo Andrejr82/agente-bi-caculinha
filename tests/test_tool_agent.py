@@ -2,32 +2,32 @@
 import sys
 import os
 import pytest
-from unittest.mock import patch, MagicMock
+import unicodedata # Adicionado para normalização de strings
+# from unittest.mock import patch, MagicMock # Removido, pois não usaremos mocks
 
 # Adicionar o diretório raiz ao sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from core.agents.tool_agent import ToolAgent
+from core.llm_adapter import OpenAILLMAdapter
+from core.llm_langchain_adapter import CustomLangChainLLM
+
+def normalize_string(s):
+    # Remove acentos e caracteres especiais, e converte para minúsculas
+    return ''.join(c for c in unicodedata.normalize('NFD', s)
+                   if unicodedata.category(c) != 'Mn').lower()
 
 @pytest.fixture
 def agent():
     """
-    Cria uma instância do ToolAgent para os testes, com o executor mockado.
+    Cria uma instância do ToolAgent para os testes, usando um LLM real.
     """
-    # Usamos o patch para substituir o método que cria o executor do agente
-    with patch('core.agents.tool_agent.ToolAgent._create_agent_executor') as mock_create_executor:
-        # Criamos um mock para o executor
-        mock_executor = MagicMock()
-        # Definimos um valor de retorno padrão para o método 'invoke' do executor
-        mock_executor.invoke.return_value = {"output": "Sucesso"}
-        # Fazemos com que o método de criação retorne nosso mock
-        mock_create_executor.return_value = mock_executor
-        
-        # Instanciamos o agente. Agora ele usará o executor mockado.
-        agent_instance = ToolAgent()
-        # Anexamos o mock à instância para que possamos verificá-lo no teste
-        agent_instance.mock_executor = mock_executor
-        yield agent_instance
+    # Instancia o LLM real
+    llm_adapter = OpenAILLMAdapter() # Renomeado para llm_adapter para clareza
+
+    # Não mockamos _create_agent_executor, permitindo que ele crie o executor real
+    agent_instance = ToolAgent(llm_adapter=llm_adapter)
+    yield agent_instance
 
 def test_tool_agent_process_query(agent):
     """
@@ -36,13 +36,22 @@ def test_tool_agent_process_query(agent):
     query = "Qual o esquema do banco de dados?"
     response = agent.process_query(query)
 
-    # Verificamos se o método 'invoke' do executor foi chamado uma vez com os argumentos corretos
-    agent.mock_executor.invoke.assert_called_once_with({'input': query})
-
     # Verificamos se a resposta do 'process_query' está no formato correto
     assert response is not None
     assert response["type"] == "text"
-    assert response["output"] == "Sucesso"
+    
+    normalized_output = normalize_string(response["output"])
+    
+    expected_part1 = normalize_string("o banco de dados e composto por dois arquivos parquet principais")
+    expected_part2 = normalize_string("admatao.parquet")
+    expected_part3 = normalize_string("vendas.parquet")
+    expected_part4 = normalize_string("buscar dados especificos sobre produtos")
+
+    # Verificamos se a resposta contém o texto esperado do ToolAgent
+    assert expected_part1 in normalized_output
+    assert expected_part2 in normalized_output
+    assert expected_part3 in normalized_output
+    assert expected_part4 in normalized_output
 
 if __name__ == "__main__":
     pytest.main([__file__])

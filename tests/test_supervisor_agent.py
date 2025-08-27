@@ -17,7 +17,7 @@ def supervisor():
     # Substituímos as classes dos agentes e do LLM por mocks
     with patch('core.agents.supervisor_agent.ToolAgent') as MockToolAgent, \
          patch('core.agents.supervisor_agent.CodeGenAgent') as MockCodeGenAgent, \
-         patch('core.agents.supervisor_agent.ChatOpenAI') as MockChatOpenAI:
+         patch('core.agents.supervisor_agent.BaseLLMAdapter') as MockLLMAdapter:
         
         # Configuramos os mocks dos agentes especialistas
         mock_tool_agent = MockToolAgent.return_value
@@ -27,14 +27,15 @@ def supervisor():
         mock_code_gen_agent.generate_and_execute_code.return_value = {"output": "Resultado do CodeGenAgent"}
 
         # Configuramos o mock do LLM de roteamento
-        mock_routing_llm = MockChatOpenAI.return_value
-        
+        mock_routing_llm = MockLLMAdapter.return_value
+        mock_routing_llm.get_completion.return_value = {"content": "tool"} # Valor padrão para evitar erros iniciais
+
         # Instanciamos o supervisor, que usará todos os mocks
-        supervisor_instance = SupervisorAgent()
+        supervisor_instance = SupervisorAgent(llm_adapter=mock_routing_llm) # Passando o mock do llm_adapter
         # Anexamos os mocks à instância para fácil acesso nos testes
         supervisor_instance.tool_agent = mock_tool_agent
         supervisor_instance.code_gen_agent = mock_code_gen_agent
-        supervisor_instance.routing_llm = mock_routing_llm
+        # supervisor_instance.routing_llm = mock_routing_llm # Não é mais necessário, pois é passado no construtor
         
         yield supervisor_instance
 
@@ -60,7 +61,7 @@ def test_supervisor_routes_to_code_gen_agent(supervisor):
     Testa se o supervisor roteia corretamente uma consulta complexa para o CodeGenAgent.
     """
     # Forçamos a decisão de roteamento para "code"
-    supervisor.routing_llm.invoke.return_value.content = "code"
+    supervisor.routing_llm.get_completion.return_value = {"content": "code"}
     
     query = "Qual o total de vendas por categoria?"
     response = supervisor.route_query(query)

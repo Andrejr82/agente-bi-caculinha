@@ -5,7 +5,7 @@ import pandas as pd
 import requests
 from sqlalchemy import create_engine
 
-from core.database import auth_db
+from core.database import sql_server_auth_db as auth_db
 
 st.markdown("<h1 class='main-header'>Monitoramento do Sistema</h1>", unsafe_allow_html=True)
 st.markdown("<div class='info-box'>Acompanhe os logs do sistema e o status dos principais serviços.</div>", unsafe_allow_html=True)

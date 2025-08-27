@@ -1,0 +1,30 @@
+lly loaded faiss with AVX2 support.
+────────────────────────── Traceback (most recent call last) ───────────────────────────
+  U:\Meu
+  Drive\Caçula\Langchain\Agent_BI\.venv\Lib\site-packages\streamlit\runtime\scriptrunn
+  er\exec_code.py:128 in exec_func_with_error_handling
+
+  U:\Meu
+  Drive\Caçula\Langchain\Agent_BI\.venv\Lib\site-packages\streamlit\runtime\scriptrunn
+  er\script_runner.py:667 in code_to_exec
+
+  U:\Meu
+  Drive\Caçula\Langchain\Agent_BI\.venv\Lib\site-packages\streamlit\runtime\scriptrunn
+  er\script_runner.py:165 in _mpa_v1
+
+  U:\Meu
+  Drive\Caçula\Langchain\Agent_BI\.venv\Lib\site-packages\streamlit\navigation\page.py
+  :300 in run
+
+  U:\Meu Drive\Caçula\Langchain\Agent_BI\pages\3_Monitoramento.py:8 in <module>
+
+      5 import requests
+      6 from sqlalchemy import create_engine
+      7
+  ❱   8 from core.database import auth_db
+      9
+     10 st.markdown("<h1 class='main-header'>Monitoramento do Sistema</h1>", unsafe_al
+     11 st.markdown("<div class='info-box'>Acompanhe os logs do sistema e o status dos
+────────────────────────────────────────────────────────────────────────────────────────
+ImportError: cannot import name 'auth_db' from 'core.database' (U:\Meu
+Drive\Caçula\Langchain\Agent_BI\core\database\__init__.py)

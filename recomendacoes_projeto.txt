@@ -1,0 +1,45 @@
+Recomendações para o Projeto (para revisão):
+
+1.  **Estratégia de Testes (Mocks vs. Real):**
+    *   **Contexto:** Discutimos a preferência por testes com dados reais vs. a praticidade e determinismo dos mocks.
+    *   **Recomendação:** Para testes unitários e de integração (como test_supervisor_agent.py e test_code_gen_agent.py), a prática recomendada é usar **mocks para o LLM e outros serviços externos**. Isso garante que os testes sejam rápidos, determinísticos e confiáveis, isolando a lógica do seu código.
+    *   **Justificativa:** LLMs reais introduzem não-determinismo e dependência de serviços externos, tornando os testes frágeis e lentos.
+    *   **Ação:** Manter os mocks nos testes dos agentes, enquanto o projeto em execução continua usando o LLM real e dados reais.
+
+2.  **Problema do Streamlit "Carregando e Nada":**
+    *   **Contexto:** O aplicativo Streamlit não está carregando a interface de login.
+    *   **Recomendação:**
+        *   **Verificar logs do Streamlit:** Ao iniciar o Streamlit, observe atentamente toda a saída no terminal. Qualquer erro ou mensagem de aviso pode indicar onde o processo está travando.
+        *   **Depuração passo a passo:** Se os logs não forem claros, pode ser necessário adicionar `print()` statements em pontos estratégicos do `streamlit_app.py` e seus módulos importados (`core/auth.py`, `core/query_processor.py`, etc.) para identificar o último ponto de execução antes do travamento.
+        *   **Isolamento de componentes:** Tentar comentar temporariamente seções do código no `streamlit_app.py` (ex: inicialização do `QueryProcessor`, carregamento de CSS) para ver se o aplicativo carrega sem elas, ajudando a isolar a causa.
+
+3.  **Resolução de Problemas com Git (Push Rejeitado/Corrupção):**
+    *   **Contexto:** O `git push` foi rejeitado devido a diferenças no remoto, e o `git pull` falhou com erros de corrupção (`fatal: bad object refs/desktop.ini`).
+    *   **Recomendação (Solução mais segura): Clonar o repositório novamente.**
+        1.  **Faça backup das suas mudanças locais:** Copie todos os arquivos do seu projeto (exceto a pasta `.git` e `.venv`) para um local seguro fora do diretório do projeto.
+        2.  **Exclua o diretório do projeto atual:** Remova completamente a pasta onde o projeto está localizado.
+        3.  **Clone o repositório limpo do GitHub:**
+            ```bash
+            git clone https://github.com/Andrejr82/agente-bi-caculinha.git
+            ```
+            (Isso criará uma nova pasta `agente-bi-caculinha` com o repositório limpo).
+        4.  **Copie suas mudanças de volta:** Cole os arquivos do seu backup para a nova pasta clonada, sobrescrevendo os arquivos existentes.
+        5.  **Reinstale o ambiente virtual e as dependências:**
+            ```bash
+b            cd agente-bi-caculinha
+            python -m venv .venv
+            ".venv\Scripts\pip" install -r requirements.txt
+            ```
+        6.  **Faça `git add .`, `git commit` e `git push` novamente.**
+    *   **Recomendação (Alternativa para `git pull` falhando): Limpar `desktop.ini` do Git.**
+        1.  **Remover `desktop.ini` do índice Git:**
+            ```bash
+            git rm --cached desktop.ini
+            ```
+        2.  **Adicionar `desktop.ini` ao `.gitignore`:** Abra o arquivo `.gitignore` e adicione `desktop.ini` em uma nova linha para que o Git o ignore no futuro.
+        3.  **Fazer um commit:**
+            ```bash
+            git commit -m "Remove desktop.ini from tracking and add to .gitignore"
+            ```
+        4.  **Tentar `git pull` novamente.**
+        5.  **Se o `pull` funcionar, tente `git push` novamente.**

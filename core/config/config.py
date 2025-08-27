@@ -44,7 +44,8 @@ class Config:
 
         return (
             f"mssql+pyodbc://{self.DB_USER}:{password_quoted}@{self.DB_SERVER}:{self.DB_PORT}/{self.DB_DATABASE}?"
-            f"driver={driver_quoted}&TrustServerCertificate={self.DB_TRUST_SERVER_CERTIFICATE}&Encrypt={self.DB_ENCRYPT}"
+            f"driver={driver_quoted}&TrustServerCertificate={self.DB_TRUST_SERVER_CERTIFICATE}"
+            + (f"&Encrypt={self.DB_ENCRYPT}" if self.DB_ENCRYPT.lower() == "yes" else "")
         )
 
     # Modo de demonstração (sem acesso ao banco de dados)
@@ -61,6 +62,11 @@ class Config:
 
     # Configurações de log
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+    # LangSmith Tracing
+    LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true"
+    LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
+    LANGCHAIN_PROJECT = os.getenv("LANGCHAIN_PROJECT", "caculinha-bi-project")
 
 
 # Para manter a compatibilidade com o resto do código que pode estar importando

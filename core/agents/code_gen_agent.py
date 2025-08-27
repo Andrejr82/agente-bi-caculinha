@@ -6,70 +6,172 @@ import re
 import pandas as pd
 import time
 import plotly.express as px
-from langchain_openai import ChatOpenAI
-from dotenv import load_dotenv
+from typing import List, Dict, Any # Import necessary types
+import threading
+from queue import Queue
+import pickle
+import faiss
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
+from core.llm_base import BaseLLMAdapter
 
 class CodeGenAgent:
     """
     Agente especializado em gerar e executar código Python para análise de dados.
     """
-    def __init__(self):
+    def __init__(self, llm_adapter: BaseLLMAdapter):
         """
         Inicializa o agente, carregando o LLM, o catálogo de dados e o diretório de dados.
         """
         self.logger = logging.getLogger(__name__)
-        load_dotenv()
-        self.llm = ChatOpenAI(temperature=0, model_name="gpt-4-turbo")
-        self.data_catalog = self._load_data_catalog()
+        self.llm = llm_adapter # Use o adaptador injetado
         self.parquet_dir = os.path.join(os.getcwd(), "data", "parquet_cleaned")
-        self.logger.info("CodeGenAgent inicializado.")
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self._load_vector_store()
+        self.code_cache = {}
+        self.logger.info("CodeGenAgent inicializado com RAG e cache de código.")
 
-    def _load_data_catalog(self):
-        """Carrega o catálogo de dados do arquivo JSON."""
+    def _load_vector_store(self):
+        """Carrega o vector store do arquivo."""
+        vector_store_path = os.path.join(os.getcwd(), "data", "vector_store.pkl")
+        try:
+            with open(vector_store_path, 'rb') as f:
+                vector_store_data = pickle.load(f)
+                self.index = faiss.deserialize_index(vector_store_data['index'])
+                self.metadata = vector_store_data['metadata']
+            self.logger.info("Vector store carregado com sucesso.")
+        except FileNotFoundError:
+            self.logger.error(f"Arquivo vector_store.pkl não encontrado em {vector_store_path}. O RAG não funcionará.")
+            self.index = None
+            self.metadata = []
+
+    def _get_catalog_timestamp(self) -> float:
+        """Retorna o timestamp da última modificação do arquivo de catálogo."""
         catalog_path = os.path.join(os.getcwd(), "data", "catalog_focused.json")
         try:
-            with open(catalog_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            return os.path.getmtime(catalog_path)
         except FileNotFoundError:
-            self.logger.error(f"Arquivo de catálogo não encontrado em {catalog_path}")
-            return []
-        except json.JSONDecodeError:
-            self.logger.error(f"Erro ao decodificar o JSON do catálogo em {catalog_path}")
-            return []
+            self.logger.warning(f"Arquivo de catálogo não encontrado em {catalog_path}. Retornando timestamp 0.")
+            return 0.0
 
-    def _build_analysis_prompt(self, query: str) -> str:
-        """Constrói o prompt para o LLM gerar o código de análise de dados."""
-        return f"""
-        **Instruções Cruciais de Análise de Dados:**
-        1.  **Verifique o Catálogo:** Antes de usar qualquer coluna, verifique no catálogo JSON qual arquivo (`file_name`) contém essa coluna. Carregue apenas o arquivo Parquet correto.
-        2.  **Caminho dos Arquivos:** Os arquivos Parquet estão localizados no diretório `{self.parquet_dir}`. Use esta variável para construir o caminho para os arquivos. Não escreva o caminho completo manualmente.
-        3.  **Aplique Filtros:** Se a pergunta do usuário contiver condições (ex: "no segmento tecidos", "para o produto X"), traduza-as em filtros do Pandas (`df[df['coluna'] == 'valor']`).
-        4.  **Use a biblioteca Pandas** para manipulação de dados.
-        **IMPORTANTE:** Ao comparar strings, sempre converta a coluna para minúsculas para garantir que a comparação não seja sensível a maiúsculas e minúsculas. Ex: `df[df['coluna'].str.lower() == 'valor_em_minusculas']`
-        5.  O catálogo de dados a seguir descreve os arquivos disponíveis e seus esquemas. Note que todos os nomes de colunas estão em formato snake_case.
-            ```json
-            {json.dumps(self.data_catalog, indent=2)}
+    def _find_relevant_columns(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
+        """Encontra as colunas mais relevantes para a query usando o FAISS."""
+        if not self.index:
+            return []
+        query_embedding = self.model.encode([query])
+        distances, indices = self.index.search(np.array(query_embedding, dtype=np.float32), k)
+        
+        relevant_columns = []
+        for i in indices[0]:
+            relevant_columns.append(self.metadata[i])
+        return relevant_columns
+
+    def _build_rag_prompt(self, query: str, relevant_columns: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        """Constrói o prompt para o LLM com base nas colunas relevantes."""
+        system_message = {
+            "role": "system",
+            "content": """
+            Você é um assistente de BI especializado em gerar código Python para análise de dados.
+            Siga as instruções cruciais de análise de dados para gerar um script Python completo e executável.
+            """
+        }
+
+        # Constrói o contexto com as colunas relevantes
+        context = "\n".join([f"- Tabela: {col['table_name']}, Coluna: {col['column_name']}, Descrição: {col['column_description']}" for col in relevant_columns])
+
+        user_message = {
+            "role": "user",
+            "content": f"""
+            **Instruções Cruciais de Análise de Dados:**
+            1.  **Use o Contexto Fornecido:** Baseie-se exclusivamente no contexto de colunas fornecido abaixo para decidir quais arquivos Parquet carregar e quais colunas usar. Não invente colunas ou arquivos.
+            2.  **Caminho dos Arquivos:** Os arquivos Parquet estão localizados no diretório `{self.parquet_dir}`. Use esta variável para construir o caminho para os arquivos.
+            3.  **Aplique Filtros:** Se a pergunta do usuário contiver condições (ex: "no segmento tecidos", "para o produto X"), traduza-as em filtros do Pandas (`df[df['coluna'] == 'valor']`).
+            4.  **Use a biblioteca Pandas** para manipulação de dados.
+            **IMPORTANTE:** Ao comparar strings, sempre converta a coluna para minúsculas para garantir que a comparação não seja sensível a maiúsculas e minúsculas. Ex: `df[df['coluna'].str.lower() == 'valor_em_minusculas']`
+            5.  **Contexto de Colunas Relevantes:**
+                ```
+                {context}
+                ```
+            6.  **Carregue os DataFrames necessários** a partir dos arquivos Parquet. A variável `parquet_dir` já está disponível no ambiente de execução. Use-a para construir o caminho. Ex: `df = pd.read_parquet(os.path.join(parquet_dir, "NOME_DO_ARQUIVO.parquet"))`
+            7.  **Analise os dados** para responder à pergunta do usuário.
+            8.  **Armazene o resultado final** (seja um texto, um número, um DataFrame ou uma figura Plotly) em uma variável chamada `result`.
+            9.  Se a pergunta exigir um gráfico, use a biblioteca Plotly Express.
+            10. **O seu código deve ser um script Python completo e executável.** Não inclua explicações ou texto adicional fora do código.
+            11. **Verifique a Disponibilidade dos Dados:** Se o contexto não fornecer colunas para responder à pergunta, armazene na variável `result` uma mensagem informativa como: 'Não consigo responder a essa pergunta com os dados disponíveis.'
+            12. **NÃO chame .show() ou print()** no seu código. Apenas armazene o objeto final (DataFrame, figura Plotly, ou texto) na variável `result`.
+
+            **Pergunta do Usuário:** "{query}"
+
+            **Exemplo de Uso:**
+
+            **Pergunta do Usuário:** "Qual o total de vendas por categoria nos últimos 3 meses?"
+
+            **Script Python Ideal:**
+            ```python
+            import pandas as pd
+            import plotly.express as px
+            import os
+            from datetime import datetime, timedelta
+
+            # Carregar dados de vendas e produtos
+            df_vendas = pd.read_parquet(os.path.join(parquet_dir, "vendas.parquet"))
+            df_produtos = pd.read_parquet(os.path.join(parquet_dir, "produtos.parquet"))
+
+            # Converter coluna de data para datetime
+            df_vendas['data_venda'] = pd.to_datetime(df_vendas['data_venda'])
+
+            # Calcular a data de 3 meses atrás
+            data_limite = datetime.now() - timedelta(days=90)
+
+            # Filtrar vendas dos últimos 3 meses
+            df_vendas_recentes = df_vendas[df_vendas['data_venda'] >= data_limite]
+
+            # Unir com dados de produtos para obter a categoria
+            df_merged = pd.merge(df_vendas_recentes, df_produtos[['produto_id', 'categoria']], on='produto_id', how='left')
+
+            # Calcular total de vendas por categoria
+            vendas_por_categoria = df_merged.groupby('categoria')['valor_venda'].sum().reset_index()
+            vendas_por_categoria.columns = ['Categoria', 'Total de Vendas']
+
+            # Armazenar o resultado
+            result = vendas_por_categoria
             ```
-        6.  **Carregue os DataFrames necessários** a partir dos arquivos Parquet. A variável `parquet_dir` já está disponível no ambiente de execução. Use-a para construir o caminho. Ex: `df = pd.read_parquet(os.path.join(parquet_dir, "NOME_DO_ARQUIVO.parquet"))`
-        7.  **Analise os dados** para responder à pergunta do usuário.
-        8.  **Armazene o resultado final** (seja um texto, um número, um DataFrame ou uma figura Plotly) em uma variável chamada `result`.
-        9.  Se a pergunta exigir um gráfico, use a biblioteca Plotly Express.
-        10. **O seu código deve ser um script Python completo e executável.** Não inclua explicações ou texto adicional fora do código.
-        11. **Verifique a Disponibilidade dos Dados:** Antes de tentar responder a uma pergunta, verifique se as colunas necessárias existem no catálogo. Se a pergunta não puder ser respondida com os dados disponíveis (por exemplo, perguntar 'quem é o comprador' quando não há dados do comprador), armazene na variável `result` uma mensagem informativa como: 'Não consigo responder a essa pergunta, pois não tenho dados sobre compradores.'
-        12. **NÃO chame .show() ou print()** no seu código. Apenas armazene o objeto final (DataFrame, figura Plotly, ou texto) na variável `result`.
 
-        **Pergunta do Usuário:** "{query}"
+            **Script Python:**
+            ```python
+            import pandas as pd
+            import plotly.express as px
+            import os
 
-        **Script Python:**
-        ```python
-        import pandas as pd
-        import plotly.express as px
-        import os
+            # Escreva seu código aqui
+            result = None # Inicialize a variável de resultado
+            ```
+            """
+        }
+        return [system_message, user_message]
 
-        # Escreva seu código aqui
-        result = None # Inicialize a variável de resultado
-        ```
-        """
+    def _execute_generated_code(self, code: str, local_scope: Dict[str, Any]):
+        q = Queue()
+
+        def worker():
+            try:
+                exec(code, local_scope)
+                q.put(local_scope.get('result'))
+            except Exception as e:
+                q.put(e)
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join(timeout=120.0)
+
+        if thread.is_alive():
+            raise TimeoutError("A execução do código gerado excedeu o tempo limite.")
+        else:
+            result = q.get()
+            if isinstance(result, Exception):
+                raise result
+            return result
 
     def generate_and_execute_code(self, query: str) -> dict:
         """
@@ -77,22 +179,41 @@ class CodeGenAgent:
         """
         self.logger.info(f'Iniciando geração e execução de código para a consulta: "{query}"')
         
-        prompt = self._build_analysis_prompt(query)
+        current_catalog_timestamp = self._get_catalog_timestamp()
+        cache_key = (query, current_catalog_timestamp)
 
-        start_llm_query = time.time()
-        response = self.llm.invoke(prompt)
-        end_llm_query = time.time()
-        self.logger.info(f"Tempo de consulta LLM: {end_llm_query - start_llm_query:.4f} segundos")
+        # Tenta buscar o código no cache
+        if cache_key in self.code_cache:
+            code_to_execute = self.code_cache[cache_key]
+            self.logger.info(f"Código recuperado do cache para a consulta: \"{query}\"")
+        else:
+            # Encontra colunas relevantes usando RAG
+            relevant_columns = self._find_relevant_columns(query)
+            
+            messages = self._build_rag_prompt(query, relevant_columns)
 
-        code_to_execute = self._extract_python_code(response.content)
+            start_llm_query = time.time()
+            llm_response = self.llm.get_completion(messages=messages) # Use get_completion with messages
+            end_llm_query = time.time()
+            self.logger.info(f"Tempo de consulta LLM: {end_llm_query - start_llm_query:.4f} segundos")
 
-        if not code_to_execute:
-            self.logger.warning("Nenhum código Python foi gerado pelo LLM.")
-            return {"type": "text", "output": "Não consegui gerar um script para responder à sua pergunta. Tente reformulá-la."}
+            if "error" in llm_response:
+                self.logger.error(f"Erro ao obter resposta do LLM: {llm_response['error']}")
+                return {"type": "error", "output": "Não foi possível gerar o código de análise. Por favor, tente reformular sua pergunta ou contate o suporte."}
 
-        self.logger.info(f"""Código gerado pelo LLM:
-{code_to_execute}"""
-)
+            code_to_execute = self._extract_python_code(llm_response.get("content", "")) # Extract content
+
+            if not code_to_execute:
+                self.logger.warning("Nenhum código Python foi gerado pelo LLM.")
+                return {"type": "text", "output": "Não consegui gerar um script para responder à sua pergunta. Tente reformulá-la."}
+            
+            # Armazena o código gerado no cache
+            self.code_cache[cache_key] = code_to_execute
+
+        self.logger.info(f"""
+Código gerado pelo LLM (ou recuperado do cache):
+{code_to_execute}
+""" )
 
         try:
             local_scope = {
@@ -104,11 +225,9 @@ class CodeGenAgent:
             }
             
             start_code_execution = time.time()
-            exec(code_to_execute, globals(), local_scope)
+            result = self._execute_generated_code(code_to_execute, local_scope)
             end_code_execution = time.time()
             self.logger.info(f"Tempo de execução do código: {end_code_execution - start_code_execution:.4f} segundos")
-
-            result = local_scope.get('result')
 
             if isinstance(result, pd.DataFrame):
                 return {"type": "dataframe", "output": result}
@@ -116,10 +235,13 @@ class CodeGenAgent:
                 return {"type": "chart", "output": result}
             else:
                 return {"type": "text", "output": str(result)}
-
+        
+        except TimeoutError:
+            self.logger.error("A execução do código gerado excedeu o tempo limite.")
+            return {"type": "error", "output": "A análise dos dados demorou muito para ser concluída e foi interrompida. Tente uma pergunta mais simples."}
         except Exception as e:
             self.logger.error(f"Erro ao executar o código gerado: {e}", exc_info=True)
-            return {"type": "error", "output": f"Ocorreu um erro ao analisar os dados. Detalhes: {e}"}
+            return {"type": "error", "output": "Ocorreu um erro ao executar a análise de dados. Por favor, verifique sua pergunta ou contate o suporte."}
 
     def _extract_python_code(self, text: str) -> str | None:
         """Extrai o bloco de código Python da resposta do LLM."""

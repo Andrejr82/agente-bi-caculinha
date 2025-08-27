@@ -14,16 +14,17 @@ def code_gen_agent():
     """
     Cria uma instância do CodeGenAgent para os testes, com o LLM mockado.
     """
-    # Substituímos a classe ChatOpenAI por um mock
-    with patch('core.agents.code_gen_agent.ChatOpenAI') as mock_chat_openai:
-        mock_llm = MagicMock()
+    # Substituímos a classe BaseLLMAdapter por um mock
+    with patch('core.agents.code_gen_agent.BaseLLMAdapter') as MockLLMAdapter:
+        mock_llm_adapter = MockLLMAdapter.return_value
         # Configuramos o mock para retornar um script Python simples
-        mock_llm.invoke.return_value.content = "```python\nresult = 10 * 2\n```"
-        mock_chat_openai.return_value = mock_llm
+        # O valor de retorno será sobrescrito nos testes individuais quando necessário
+        mock_llm_adapter.get_completion.return_value = {"content": "```python\nresult = 10 * 2\n```"}
         
         # Instanciamos o agente, que agora usará o LLM mockado
-        agent = CodeGenAgent()
-        agent.llm = mock_llm
+        agent = CodeGenAgent(llm_adapter=mock_llm_adapter)
+        # Anexamos o mock à instância para fácil acesso nos testes
+        agent.llm = mock_llm_adapter # Para compatibilidade com as asserções existentes
         return agent
 
 def test_code_gen_agent_executes_code_successfully(code_gen_agent):
@@ -34,7 +35,7 @@ def test_code_gen_agent_executes_code_successfully(code_gen_agent):
     result = code_gen_agent.generate_and_execute_code(query)
 
     # Verificamos se o LLM foi chamado para gerar o código
-    code_gen_agent.llm.invoke.assert_called_once()
+    code_gen_agent.llm.get_completion.assert_called_once()
 
     # Verificamos se o resultado da execução está correto
     assert result is not None
@@ -46,7 +47,7 @@ def test_code_gen_agent_handles_no_code_generated(code_gen_agent):
     Testa como o CodeGenAgent se comporta quando o LLM não consegue gerar um código válido.
     """
     # Configuramos o mock para retornar uma resposta sem código
-    code_gen_agent.llm.invoke.return_value.content = "Desculpe, não sei como fazer isso."
+    code_gen_agent.llm.get_completion.return_value = {"content": "Desculpe, não sei como fazer isso."}
     
     query = "Consulta que não gera código"
     result = code_gen_agent.generate_and_execute_code(query)

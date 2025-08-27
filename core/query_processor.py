@@ -1,6 +1,8 @@
 # core/query_processor.py
 import logging
 from core.agents.supervisor_agent import SupervisorAgent
+from core.llm_base import BaseLLMAdapter
+from core.llm_adapter import OpenAILLMAdapter # Importe a implementação concreta
 
 class QueryProcessor:
     """
@@ -12,7 +14,8 @@ class QueryProcessor:
         Inicializa o processador de consultas e o agente supervisor.
         """
         self.logger = logging.getLogger(__name__)
-        self.supervisor = SupervisorAgent()
+        self.llm_adapter: BaseLLMAdapter = OpenAILLMAdapter()
+        self.supervisor = SupervisorAgent(llm_adapter=self.llm_adapter)
         self.logger.info("QueryProcessor inicializado e pronto para delegar ao SupervisorAgent.")
 
     def process_query(self, query: str) -> dict:

@@ -9,14 +9,7 @@ from core.query_processor import QueryProcessor
 audit_logger = logging.getLogger("audit")
 
 # --- Constantes ---
-SESSION_STATE_KEYS = {
-    "MESSAGES": "messages",
-    "QUERY_PROCESSOR": "query_processor",
-    "AUTHENTICATED": "authenticated",
-    "USERNAME": "username",
-    "ROLE": "role",
-    "LAST_LOGIN": "ultimo_login",
-}
+from core.session_state import SESSION_STATE_KEYS
 ROLES = {"ASSISTANT": "assistant", "USER": "user"}
 PAGE_CONFIG = {
     "page_title": "Assistente de BI - Caçula",
@@ -28,12 +21,9 @@ PAGE_CONFIG = {
 # --- Configuração da Página e Estilos ---
 st.set_page_config(**PAGE_CONFIG)
 
-# O CSS pode ser carregado de um arquivo externo para melhor organização
-# with open("style.css") as f:
-#     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-st.markdown(
-    """<style> ... </style>""", unsafe_allow_html=True
-)  # CSS Omitido para brevidade
+# Load CSS from external file for better organization
+with open("style.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 
 def initialize_session_state():
@@ -91,6 +81,15 @@ def show_bi_assistant():
 
     # Entrada do usuário
     if prompt := st.chat_input("Faça uma pergunta sobre seus dados..."):
+        # Input validation and sanitization
+        if not prompt.strip(): # Check for empty or whitespace-only input
+            st.warning("Por favor, digite uma pergunta válida.")
+            return # Stop processing if input is empty
+
+        if len(prompt) > 500: # Example: Limit input length to 500 characters
+            st.warning("Sua pergunta é muito longa. Por favor, seja mais conciso (máximo 500 caracteres).")
+            return # Stop processing if input is too long
+
         # Adicionar mensagem do usuário ao histórico e exibir
         st.session_state[SESSION_STATE_KEYS["MESSAGES"]].append(
             {"role": ROLES["USER"], "output": prompt}
@@ -100,7 +99,8 @@ def show_bi_assistant():
 
         # Processar a pergunta e obter a resposta
         with st.chat_message(ROLES["ASSISTANT"]):
-            with st.spinner("Analisando dados..."):
+            st.info("Aguarde enquanto o assistente processa sua solicitação...") # Added info message
+            with st.spinner("O assistente de BI está pensando..."): # More generic spinner message
                 query_processor = st.session_state[
                     SESSION_STATE_KEYS["QUERY_PROCESSOR"]
                 ]
@@ -145,7 +145,7 @@ def show_admin_dashboard():
 
 import logging
 import uuid
-import sentry_sdk
+# import sentry_sdk
 import os
 from core.config.logging_config import setup_logging
 from core.utils.context import correlation_id_var
@@ -155,12 +155,12 @@ logger = logging.getLogger(__name__)
 def main():
     """Função principal que controla o fluxo da aplicação."""
     setup_logging()
-    sentry_dsn = os.getenv("SENTRY_DSN")
-    if sentry_dsn:
-        sentry_sdk.init(
-            dsn=sentry_dsn,
-            traces_sample_rate=1.0,
-        )
+    # sentry_dsn = os.getenv("SENTRY_DSN")
+    # if sentry_dsn:
+    #     sentry_sdk.init(
+    #         dsn=sentry_dsn,
+    #         traces_sample_rate=1.0,
+    #     )
 
     # Set correlation id
     if 'correlation_id' not in st.session_state:
@@ -188,17 +188,7 @@ def main():
     username = st.session_state.get(SESSION_STATE_KEYS["USERNAME"])
     role = st.session_state.get(SESSION_STATE_KEYS["ROLE"])
 
-    # Oculta o link do painel de administração para não-admins com CSS
-    if role != "admin":
-        st.markdown("""
-            <style>
-                /* O seletor pode precisar de ajuste dependendo da versão do Streamlit */
-                div[data-testid="stSidebarNav"] ul li:nth-child(4),
-                div[data-testid="stSidebarNav"] ul li:nth-child(5) { 
-                    display: none;
-                }
-            </style>
-        """, unsafe_allow_html=True)
+    
 
     if username:
         st.sidebar.markdown(

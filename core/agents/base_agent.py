@@ -1,6 +1,5 @@
 import logging
-import re
-
+import re # Keep re for now, might be used elsewhere, but not for _convert_to_sql
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -39,17 +38,13 @@ class BaseAgent:
     def process_query(self, query):
         """
         Processa uma consulta do usuário.
-
-        Args:
-            query (str): A consulta do usuário.
-
-        Returns:
-            dict: Resposta processada.
+        This method now assumes that if node_client is used, the query is already SQL.
         """
         logger.info("Processando consulta: %s", query)
         if self.node_client:
-            logger.info("Usando NodeMCPClient para processar a consulta.")
-            return self._process_query_with_node_client(query)
+            logger.info("Usando NodeMCPClient para processar a consulta SQL.")
+            # Assuming 'query' is already a SQL query and no params are needed for this path
+            return self._process_query_with_node_client(sql_query=query, query_params=None)
         logger.error(
             "Nenhum método de processamento disponível. Não é possível responder."
         )
@@ -59,20 +54,9 @@ class BaseAgent:
             "source": "no_processing_method",
         }
 
-    def _process_query_with_node_client(self, query):
-        """Processa uma consulta usando o NodeMCPClient."""
+    def _process_query_with_node_client(self, sql_query: str, query_params: list = None):
+        """Processa uma consulta SQL usando o NodeMCPClient."""
         try:
-            sql_query, query_params = self._convert_to_sql(query)
-            if not sql_query:
-                logger.warning(
-                    "Não foi possível converter a consulta para SQL: %s", query
-                )
-                return {
-                    "type": "text",
-                    "content": "Não entendi sua pergunta. Poderia reformular?",
-                    "source": "node_mcp_client_conversion_error",
-                }
-
             logger.info(
                 "Executando SQL via NodeMCPClient: '%s' com params: %s",
                 sql_query,
@@ -116,36 +100,3 @@ class BaseAgent:
                 "content": f"Erro inesperado ao processar consulta: {e}",
                 "source": "node_mcp_client_exception",
             }
-
-    def _convert_to_sql(self, query):
-        """
-        Converte uma consulta em linguagem natural para SQL.
-
-        Args:
-            query (str): A consulta em linguagem natural.
-
-        Returns:
-            tuple: (SQL (str), parâmetros (list or None))
-        """
-        logger.debug("Convertendo para SQL a consulta: '%s'", query)
-        query_lower = query.lower()
-
-        # Regex para extrair um ID de produto (número com 4 ou mais dígitos)
-        product_id_match = re.search(r"\b(\d{4,})\b", query_lower)
-        if product_id_match:
-            product_id = product_id_match.group(1)
-            logger.info("ID de produto encontrado: %s", product_id)
-            sql = "SELECT * FROM Admat_OPCOM WHERE CODIGO = ?"
-            return sql, [product_id]
-
-        # Busca por nome de produto (ex: "detalhes do produto X")
-        product_name_match = re.search(r"(?:produto|item)\s+([\w\s]+)", query_lower)
-        if product_name_match:
-            product_name = product_name_match.group(1).strip()
-            logger.info("Nome de produto encontrado: %s", product_name)
-            sql = "SELECT * FROM Admat_OPCOM WHERE NOME LIKE ?"
-            return sql, [f"%{product_name}%"]
-
-        # Fallback se nenhum padrão for encontrado
-        logger.warning("Nenhum padrão SQL correspondente para a consulta: %s", query)
-        return None, None

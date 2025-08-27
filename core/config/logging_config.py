@@ -1,5 +1,6 @@
 import logging.config
 import os
+from core.config.config import Config # Import Config
 
 # Check if python-json-logger is installed
 try:
@@ -26,6 +27,9 @@ def setup_logging():
     # Base formatter
     formatter = "json" if JSON_LOGGER_AVAILABLE else "simple"
 
+    # Get the desired log level from Config
+    app_log_level = "DEBUG" # <--- TEMPORARY CHANGE FOR DEBUGGING
+
     logging_config = {
         "version": 1,
         "disable_existing_loggers": False,
@@ -46,14 +50,14 @@ def setup_logging():
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "level": "DEBUG",
+                "level": app_log_level, # Use the configured log level
                 "formatter": "simple",
                 "stream": "ext://sys.stdout",
                 "filters": ["correlation_id"],
             },
             "file": {
                 "class": "logging.handlers.RotatingFileHandler",
-                "level": "INFO",
+                "level": "INFO", # File handler can remain INFO or higher
                 "formatter": formatter,
                 "filename": os.path.join(LOGS_DIR, "app.log"),
                 "maxBytes": 10485760,  # 10MB
@@ -74,7 +78,7 @@ def setup_logging():
         },
         "loggers": {
             "": { # Root logger
-                "level": "INFO",
+                "level": app_log_level, # Use the configured log level
                 "handlers": ["console", "file"],
             },
             "streamlit": {

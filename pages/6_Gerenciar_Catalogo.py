@@ -2,7 +2,7 @@ import streamlit as st
 import json
 import os
 import pandas as pd
-from core.auth import SESSION_STATE_KEYS # Assuming SESSION_STATE_KEYS is accessible
+from core.session_state import SESSION_STATE_KEYS
 
 CATALOG_PATH = "data/catalog_focused.json"
 

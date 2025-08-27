@@ -1,33 +1,69 @@
-# Ambientes Virtuais
-venv/
-.venv/
-env/
-.env
-
-# Caches do Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
-*.pyo
 *.pyd
+*.pyo
+*.egg-info/
+.Python
+build/
+dist/
 
-# Caches de Ferramentas de Teste e Análise
-.pytest_cache/
+# Environments
+.env
+.venv/
+venv/
+env/
+
+# Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+.Trashes
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+*.bak
+*.swp
+*~
+.fuse_hidden*
+
+# MyPy cache
 .mypy_cache/
-.ruff_cache/
+
+# Pytest cache
+.pytest_cache/
+
+# Local databases
+*.db
+*.sqlite3
+data/*.db
+data/*.sqlite3
 
 # Logs
 logs/
 *.log
 
-# Arquivos de Sistema Operacional
-desktop.ini
-.DS_Store
+# Jupyter Notebook files
+.ipynb_checkpoints
 
-# Arquivos de IDEs
-.vscode/
-.idea/
+# Temporary files
+*.tmp
+tmp/
 
-# Diretórios de Saída e Relatórios Gerados
-outputs/
-relatorios/
+# Generated charts
 generated_charts/
+
+# Parquet files
+data/parquet/
+data/parquet_cleaned/
+
+# Specific project files to ignore
+Relatorio_integracao_1308.md
+Melhorias_Projeto.txt
+plano_de_melhorias.md

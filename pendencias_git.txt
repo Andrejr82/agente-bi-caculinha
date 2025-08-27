@@ -1,0 +1,7 @@
+Pendências do Git para retomar amanhã:
+
+1.  **Fazer 'git add .'**: Adicionar as mudanças da documentação ao stage do Git.
+2.  **Fazer 'git commit'**: Com a mensagem "Atualização da documentação: Adição de fluxogramas e detalhes de arquitetura."
+3.  **Fazer 'git push'**: Enviar as mudanças para o repositório remoto no GitHub.
+
+Observação: Se o 'git push' falhar novamente devido a diferenças com o remoto, será necessário fazer um 'git pull' primeiro para integrar as mudanças. Se o 'git pull' falhar com erros de corrupção, a solução mais segura é clonar o repositório novamente e copiar as mudanças locais para a nova pasta clonada.
