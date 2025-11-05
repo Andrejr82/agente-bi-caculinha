@@ -1,8 +1,9 @@
 # core/query_processor.py
 import logging
 from core.agents.supervisor_agent import SupervisorAgent
-from core.llm_base import BaseLLMAdapter
-from core.llm_adapter import OpenAILLMAdapter # Importe a implementação concreta
+from core.llm_adapter import OpenAILLMAdapter
+from core.llm_codellama_adapter import CodeLlamaLLMAdapter
+from core.cache import Cache
 
 class QueryProcessor:
     """
@@ -14,8 +15,13 @@ class QueryProcessor:
         Inicializa o processador de consultas e o agente supervisor.
         """
         self.logger = logging.getLogger(__name__)
-        self.llm_adapter: BaseLLMAdapter = OpenAILLMAdapter()
-        self.supervisor = SupervisorAgent(llm_adapter=self.llm_adapter)
+        self.openai_adapter = OpenAILLMAdapter()
+        self.codellama_adapter = CodeLlamaLLMAdapter()
+        self.supervisor = SupervisorAgent(
+            openai_adapter=self.openai_adapter,
+            codellama_adapter=self.codellama_adapter
+        )
+        self.cache = Cache()
         self.logger.info("QueryProcessor inicializado e pronto para delegar ao SupervisorAgent.")
 
     def process_query(self, query: str) -> dict:
@@ -28,5 +34,12 @@ class QueryProcessor:
         Returns:
             dict: O resultado do processamento pelo agente especialista apropriado.
         """
+        cached_result = self.cache.get(query)
+        if cached_result:
+            self.logger.info(f'Resultado recuperado do cache para a consulta: "{query}"')
+            return cached_result
+
         self.logger.info(f'Delegando a consulta para o Supervisor: "{query}"')
-        return self.supervisor.route_query(query)
+        result = self.supervisor.route_query(query)
+        self.cache.set(query, result)
+        return result

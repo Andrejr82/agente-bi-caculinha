@@ -3,28 +3,32 @@ import sys
 import os
 import pytest
 from unittest.mock import patch, MagicMock
+import numpy as np
 
 # Adicionar o diretório raiz ao sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from core.agents.code_gen_agent import CodeGenAgent
+from core.llm_codellama_adapter import CodeLlamaLLMAdapter
 
 @pytest.fixture
 def code_gen_agent():
     """
     Cria uma instância do CodeGenAgent para os testes, com o LLM mockado.
     """
-    # Substituímos a classe BaseLLMAdapter por um mock
-    with patch('core.agents.code_gen_agent.BaseLLMAdapter') as MockLLMAdapter:
-        mock_llm_adapter = MockLLMAdapter.return_value
-        # Configuramos o mock para retornar um script Python simples
-        # O valor de retorno será sobrescrito nos testes individuais quando necessário
-        mock_llm_adapter.get_completion.return_value = {"content": "```python\nresult = 10 * 2\n```"}
+    mock_llm_adapter = MagicMock(spec=CodeLlamaLLMAdapter)
+    mock_llm_adapter.get_completion.return_value = {"content": "```python\nresult = 10 * 2\n```"}
+
+    with patch('core.agents.code_gen_agent.SentenceTransformer') as mock_st, \
+         patch('core.agents.code_gen_agent.faiss') as mock_faiss, \
+         patch('builtins.open'), \
+         patch('pickle.load'):
         
-        # Instanciamos o agente, que agora usará o LLM mockado
+        mock_faiss.deserialize_index.return_value.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+
         agent = CodeGenAgent(llm_adapter=mock_llm_adapter)
-        # Anexamos o mock à instância para fácil acesso nos testes
-        agent.llm = mock_llm_adapter # Para compatibilidade com as asserções existentes
+        agent.llm = mock_llm_adapter
+        agent.metadata = [{'table_name': 'test', 'column_name': 'test', 'column_description': 'test'}]
         return agent
 
 def test_code_gen_agent_executes_code_successfully(code_gen_agent):

@@ -14,13 +14,13 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from core.llm_base import BaseLLMAdapter
+from core.llm_codellama_adapter import CodeLlamaLLMAdapter
 
 class CodeGenAgent:
     """
     Agente especializado em gerar e executar código Python para análise de dados.
     """
-    def __init__(self, llm_adapter: BaseLLMAdapter):
+    def __init__(self, llm_adapter: CodeLlamaLLMAdapter):
         """
         Inicializa o agente, carregando o LLM, o catálogo de dados e o diretório de dados.
         """

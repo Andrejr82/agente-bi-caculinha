@@ -1,19 +1,11 @@
-import logging
+from .supervisor_agent import SupervisorAgent
+from .tool_agent import ToolAgent
+from .code_gen_agent import CodeGenAgent
+from .tool_selector import ToolSelector
 
-try:
-    # seu código principal aqui
-    pass
-except Exception as e:
-    logging.error(f"Erro geral: {e}")
-logging.basicConfig(level=logging.INFO)
-
-# Pacote agents para Caçulinha BI
-
-"""
-Módulo de integração dos agentes inteligentes ao fluxo principal do projeto.
-Inclui agentes para BI, desenvolvimento, produtos e automação.
-"""
-
-if __name__ == "__main__":
-    print("Rodando como script...")
-    # TODO: Adicionar chamada a uma função principal se necessário
+__all__ = [
+    "SupervisorAgent",
+    "ToolAgent",
+    "CodeGenAgent",
+    "ToolSelector",
+]

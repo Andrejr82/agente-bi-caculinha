@@ -12,11 +12,13 @@ openai>=1.6.1
 python-dotenv>=1.0.0
 python-decouple
 passlib
+bcrypt
 
 # --- Web Server (se usar modo Flask) ---
 streamlit>=1.30.0
 flask>=2.3.0
 Flask-Cors>=4.0.0 # Nome correto para pip
+Flask-Limiter>=2.0.0
 
 # --- Banco de Dados SQL Server ---
 sqlalchemy>=2.0.0
@@ -49,6 +51,7 @@ mssql-mcp-server
 # --- Dependências de Teste ---
 pytest
 pytest-cov
+pytest-mock
 
 # --- Error Monitoring ---
 sentry-sdk
