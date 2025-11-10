@@ -2,7 +2,6 @@
 import logging
 from core.agents.supervisor_agent import SupervisorAgent
 from core.llm_adapter import OpenAILLMAdapter
-from core.llm_codellama_adapter import CodeLlamaLLMAdapter
 from core.cache import Cache
 
 class QueryProcessor:
@@ -16,11 +15,7 @@ class QueryProcessor:
         """
         self.logger = logging.getLogger(__name__)
         self.openai_adapter = OpenAILLMAdapter()
-        self.codellama_adapter = CodeLlamaLLMAdapter()
-        self.supervisor = SupervisorAgent(
-            openai_adapter=self.openai_adapter,
-            codellama_adapter=self.codellama_adapter
-        )
+        self.supervisor = SupervisorAgent(openai_adapter=self.openai_adapter)
         self.cache = Cache()
         self.logger.info("QueryProcessor inicializado e pronto para delegar ao SupervisorAgent.")
 

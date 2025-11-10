@@ -28,8 +28,6 @@ alembic # Adicionado para gerenciamento de migrações de banco de dados
 # --- Processamento de Dados ---
 pandas>=2.0.0
 numpy>=1.24.0,<2.0.0
-sentence-transformers
-faiss-cpu
 
 # --- Visualização de Dados ---
 plotly>=5.10.0
@@ -55,3 +53,5 @@ pytest-mock
 
 # --- Error Monitoring ---
 sentry-sdk
+prometheus-client
+loki-client

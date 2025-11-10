@@ -16,6 +16,13 @@ try:
 except ImportError:
     SENTRY_AVAILABLE = False
 
+# Check if loki-client is installed
+try:
+    from core.config.loki_handler import setup_loki_handler
+    LOKI_AVAILABLE = True
+except ImportError:
+    LOKI_AVAILABLE = False
+
 def setup_logging():
     """
     Configures the logging for the application using a dictionary configuration.
@@ -109,5 +116,10 @@ def setup_logging():
             "level": "ERROR",
         }
         logging_config["loggers"][""]["handlers"].append("sentry")
+
+    if LOKI_AVAILABLE and os.getenv("LOKI_HOST"):
+        loki_host = os.getenv("LOKI_HOST")
+        loki_port = int(os.getenv("LOKI_PORT", 3100))
+        setup_loki_handler(loki_host, loki_port)
 
     logging.config.dictConfig(logging_config)
