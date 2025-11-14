@@ -13,7 +13,6 @@ from core.llm_adapter import OpenAILLMAdapter
 from core.llm_langchain_adapter import CustomLangChainLLM
 
 from core.tools.mcp_sql_server_tools import sql_tools
-from core.tools.date_time_tools import date_time_tools
 
 
 class ToolAgent:
@@ -23,7 +22,6 @@ class ToolAgent:
         
         self.langchain_llm = CustomLangChainLLM(llm_adapter=self.llm_adapter)
         
-        self.tools = sql_tools + date_time_tools
         self.agent_executor = self._create_agent_executor()
         self.logger.info("ToolAgent com OpenAI Tools Agent inicializado.")
 
@@ -39,12 +37,12 @@ class ToolAgent:
         )
 
         agent = create_openai_tools_agent(
-            llm=self.langchain_llm, tools=self.tools, prompt=prompt
+            llm=self.langchain_llm, tools=sql_tools, prompt=prompt
         )
 
         return AgentExecutor(
             agent=agent,
-            tools=self.tools,
+            tools=sql_tools,
             verbose=True,
         )
 
